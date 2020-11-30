@@ -118,7 +118,9 @@ open class MarkdownView: UIView {
           wv.bottomAnchor.constraint(equalTo: self.bottomAnchor).isActive = true
           wv.leadingAnchor.constraint(equalTo: self.leadingAnchor).isActive = true
           wv.trailingAnchor.constraint(equalTo: self.trailingAnchor).isActive = true
-          wv.backgroundColor = self.backgroundColor
+          wv.isOpaque = false
+          wv.scrollView.backgroundColor = #colorLiteral(red: 0.2, green: 0.2, blue: 0.2, alpha: 1)
+          wv.backgroundColor = #colorLiteral(red: 0.2, green: 0.2, blue: 0.2, alpha: 1)
 
           self.webView = wv
 
