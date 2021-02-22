@@ -176,6 +176,7 @@ code {
 }
 a {
   color: #99cc99;
+  word-break: break-word;
 }
 a:visited {
   color: #6e9f6d;
