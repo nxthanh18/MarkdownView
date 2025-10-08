@@ -22,7 +22,11 @@ let package = Package(
                 "Resources/main.js.LICENSE.txt"
             ],
             resources: [
-                .process("Resources")
+                .copy("Resources/main.js"),
+                .copy("Resources/main.css"),
+                .copy("Resources/main_dark.css"),
+                .copy("Resources/index.html"),
+                .copy("Resources/index_dark.html")
             ]
         )
     ]
