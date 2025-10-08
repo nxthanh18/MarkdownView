@@ -15,7 +15,8 @@ Pod::Spec.new do |s|
       'Sources/MarkdownView/Resources/styled.html',
       'Sources/MarkdownView/Resources/non_styled.html',
       'Sources/MarkdownView/Resources/main.css',
-      'Sources/MarkdownView/Resources/main.js'
+      'Sources/MarkdownView/Resources/main.js',
+      'webassets/dist/*'
     ]
   }
   s.frameworks    = "Foundation"
