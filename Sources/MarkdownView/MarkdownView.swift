@@ -15,36 +15,33 @@ open class MarkdownView: UIView {
     
     public var isDarkUIStyle = false {
         didSet {
+            // Giữ nguyên logic cũ: thay đổi theme sẽ reload CSS
             reloadMarkdownView()
         }
     }
       
     fileprivate var intrinsicContentHeight: CGFloat? {
         didSet {
-          self.invalidateIntrinsicContentSize()
+            self.invalidateIntrinsicContentSize()
         }
     }
 
     @objc public var isScrollEnabled: Bool = true {
-
-    didSet {
-        webView?.scrollView.isScrollEnabled = isScrollEnabled
-    }
-
+        didSet {
+            webView?.scrollView.isScrollEnabled = isScrollEnabled
+        }
     }
 
     @objc public var onTouchLink: ((URLRequest) -> Bool)?
-
     @objc public var onRendered: ((CGFloat) -> Void)?
-    
     @objc public var didChangeInterfaceStyle: ((Bool, Error?) -> Void)?
 
     public convenience init() {
-        self.init(frame: CGRect.zero)
+        self.init(frame: .zero)
     }
 
     override init (frame: CGRect) {
-        super.init(frame : frame)
+        super.init(frame: frame)
     }
 
     public required init?(coder aDecoder: NSCoder) {
@@ -55,7 +52,7 @@ open class MarkdownView: UIView {
         if let height = self.intrinsicContentHeight {
             return CGSize(width: UIView.noIntrinsicMetric, height: height)
         } else {
-            return CGSize.zero
+            return .zero
         }
     }
 
@@ -63,8 +60,7 @@ open class MarkdownView: UIView {
         super.traitCollectionDidChange(previousTraitCollection)
         if #available(iOS 13.0, *), isFollowSystemUIStyle {
             if traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) {
-                isDarkUIStyle = (traitCollection.userInterfaceStyle == .dark ? true : false)
-                reloadMarkdownView()
+                isDarkUIStyle = (traitCollection.userInterfaceStyle == .dark)
             }
         }
     }
@@ -72,61 +68,67 @@ open class MarkdownView: UIView {
     @objc public func load(markdown: String?, enableImage: Bool = true) {
         guard let markdown = markdown else { return }
 
-        let bundle = Bundle(for: MarkdownView.self)
-
-        var htmlName = "index"
-
-        if isDarkUIStyle {
-            htmlName = "index_dark"
+        if let old = self.webView {
+            old.navigationDelegate = nil
+            old.stopLoading()
+            old.removeFromSuperview()
+            self.webView = nil
         }
 
-        let htmlURL: URL? =
-          bundle.url(forResource: htmlName,
-                     withExtension: "html") ??
-          bundle.url(forResource: htmlName,
-                     withExtension: "html",
-                     subdirectory: "MarkdownView.bundle")
+        let primaryBundle = Bundle.markdownViewBundle
+
+        var htmlName = "index"
+        if isDarkUIStyle { htmlName = "index_dark" }
+
+        // Ưu tiên tìm trong bundle tài nguyên (SPM: .module, Pods: MarkdownView.bundle)
+        var htmlURL: URL? = primaryBundle.url(forResource: htmlName, withExtension: "html")
+
+        // Fallback (giữ tương thích cũ)
+        if htmlURL == nil {
+            let classBundle = Bundle(for: MarkdownView.self)
+            htmlURL = classBundle.url(forResource: htmlName, withExtension: "html", subdirectory: "MarkdownView.bundle")
+                ?? Bundle.main.url(forResource: htmlName, withExtension: "html", subdirectory: "MarkdownView.bundle")
+        }
 
         if let url = htmlURL {
-          let templateRequest = URLRequest(url: url)
+            let templateRequest = URLRequest(url: url)
 
-          let escapedMarkdown = self.escape(markdown: markdown) ?? ""
-          let imageOption = enableImage ? "true" : "false"
-          let script = "window.showMarkdown('\(escapedMarkdown)', \(imageOption));"
-          let userScript = WKUserScript(source: script, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
+            let escapedMarkdown = self.escape(markdown: markdown) ?? ""
+            let imageOption = enableImage ? "true" : "false"
+            let script = "window.showMarkdown('\(escapedMarkdown)', \(imageOption));"
+            let userScript = WKUserScript(source: script, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
 
-          let controller = WKUserContentController()
-          controller.addUserScript(userScript)
+            let controller = WKUserContentController()
+            controller.addUserScript(userScript)
 
-          let configuration = WKWebViewConfiguration()
-          configuration.userContentController = controller
-          let preferences = WKPreferences()
-          preferences.javaScriptEnabled = true
-          configuration.preferences = preferences
+            let configuration = WKWebViewConfiguration()
+            configuration.userContentController = controller
+            let preferences = WKPreferences()
+            preferences.javaScriptEnabled = true
+            configuration.preferences = preferences
             
-          let wv = WKWebView(frame: self.bounds, configuration: configuration)
-          wv.scrollView.isScrollEnabled = self.isScrollEnabled
-          wv.translatesAutoresizingMaskIntoConstraints = false
-          wv.navigationDelegate = self
-          wv.isOpaque = false
-          if #available(iOS 13.0, *) {
+            let wv = WKWebView(frame: self.bounds, configuration: configuration)
+            wv.scrollView.isScrollEnabled = self.isScrollEnabled
+            wv.translatesAutoresizingMaskIntoConstraints = false
+            wv.navigationDelegate = self
+            wv.isOpaque = false
             wv.backgroundColor = UIColor.systemBackground
             wv.scrollView.backgroundColor = UIColor.systemBackground
-          }
-          addSubview(wv)
-          wv.topAnchor.constraint(equalTo: self.topAnchor).isActive = true
-          wv.bottomAnchor.constraint(equalTo: self.bottomAnchor).isActive = true
-          wv.leadingAnchor.constraint(equalTo: self.leadingAnchor).isActive = true
-          wv.trailingAnchor.constraint(equalTo: self.trailingAnchor).isActive = true
-          wv.isOpaque = false
-          wv.scrollView.backgroundColor = #colorLiteral(red: 0.2, green: 0.2, blue: 0.2, alpha: 1)
-          wv.backgroundColor = #colorLiteral(red: 0.2, green: 0.2, blue: 0.2, alpha: 1)
+            addSubview(wv)
+            NSLayoutConstraint.activate([
+                wv.topAnchor.constraint(equalTo: self.topAnchor),
+                wv.bottomAnchor.constraint(equalTo: self.bottomAnchor),
+                wv.leadingAnchor.constraint(equalTo: self.leadingAnchor),
+                wv.trailingAnchor.constraint(equalTo: self.trailingAnchor)
+            ])
+            wv.isOpaque = false
+            wv.scrollView.backgroundColor = #colorLiteral(red: 0.2, green: 0.2, blue: 0.2, alpha: 1)
+            wv.backgroundColor = #colorLiteral(red: 0.2, green: 0.2, blue: 0.2, alpha: 1)
 
-          self.webView = wv
-
-          wv.load(templateRequest)
+            self.webView = wv
+            wv.load(templateRequest)
         } else {
-          // TODO: raise error
+            // TODO: raise error
         }
     }
 
@@ -136,9 +138,8 @@ open class MarkdownView: UIView {
     
     // MARK: - Reload MarkdownView
     private func reloadMarkdownView() {
-        guard let webView = self.webView else {
-            return
-        }
+        guard let webView = self.webView else { return }
+
         let cssFile = readFileBy(name: (isDarkUIStyle ? "main_dark" : "main"), type: "css")
         let cssStyle = """
             javascript:(function() {
@@ -148,13 +149,10 @@ open class MarkdownView: UIView {
             style.innerHTML = window.atob('\(encodeStringTo64(fromString: cssFile)!)');
             parent.appendChild(style)})()
         """
-        webView.evaluateJavaScript(cssStyle) { [weak self] result, error in
+        webView.evaluateJavaScript(cssStyle) { [weak self] _, error in
             self?.didChangeInterfaceStyle?(self?.isDarkUIStyle ?? false, error)
         }
     }
-    
-    // NOTE: Injecting css and javascript into WKWebView
-    // https://medium.com/@mahdi.mahjoobi/injection-css-and-javascript-in-wkwebview-eabf58e5c54e
     
     // MARK: - Encode string to base 64
     private func encodeStringTo64(fromString: String) -> String? {
@@ -164,17 +162,19 @@ open class MarkdownView: UIView {
 
     // MARK: - Reading contents of files
     private func readFileBy(name: String, type: String) -> String {
-        guard let path = Bundle.main.path(forResource: name, ofType: type) ?? Bundle.main.path(forResource: name, ofType: type, inDirectory: "MarkdownView.bundle") else {
-            return "Failed to find path"
+        // ✅ Ưu tiên bundle tài nguyên SPM/Pods
+        if let path = Bundle.markdownViewBundle.path(forResource: name, ofType: type) {
+            return (try? String(contentsOfFile: path, encoding: .utf8)) ?? "Unkown Error"
         }
 
-        do {
-            return try String(contentsOfFile: path, encoding: .utf8)
-        } catch {
-            return "Unkown Error"
+        // Fallback: CocoaPods bundle nằm trong host
+        if let path = Bundle(for: MarkdownView.self).path(forResource: name, ofType: type, inDirectory: "MarkdownView.bundle") ??
+                      Bundle.main.path(forResource: name, ofType: type, inDirectory: "MarkdownView.bundle") {
+            return (try? String(contentsOfFile: path, encoding: .utf8)) ?? "Unkown Error"
         }
+
+        return "Failed to find path"
     }
-
 }
 
 extension MarkdownView: WKNavigationDelegate {
@@ -192,14 +192,40 @@ extension MarkdownView: WKNavigationDelegate {
 
     public func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         switch navigationAction.navigationType {
-            case .linkActivated:
-                if let onTouchLink = onTouchLink, onTouchLink(navigationAction.request) {
-                    decisionHandler(.allow)
-                } else {
-                    decisionHandler(.cancel)
-                }
-                default:
-                    decisionHandler(.allow)
+        case .linkActivated:
+            if let onTouchLink = onTouchLink, onTouchLink(navigationAction.request) {
+                decisionHandler(.allow)
+            } else {
+                decisionHandler(.cancel)
+            }
+        default:
+            decisionHandler(.allow)
         }
     }
+}
+
+// MARK: - Bundle resolver dùng chung cho SPM + CocoaPods
+private extension Bundle {
+    static var markdownViewBundle: Bundle = {
+        #if SWIFT_PACKAGE
+        // SPM: resource bundle là .module
+        return .module
+        #else
+        // CocoaPods: cố gắng tìm "MarkdownView.bundle" bên cạnh framework/host
+        let classBundle = Bundle(for: MarkdownView.self)
+        let candidates: [URL?] = [
+            classBundle.resourceURL,
+            classBundle.bundleURL,
+            Bundle.main.resourceURL
+        ]
+        for candidate in candidates {
+            if let url = candidate?.appendingPathComponent("MarkdownView.bundle"),
+               let bundle = Bundle(url: url) {
+                return bundle
+            }
+        }
+        // Fallback cuối: chính bundle của class (khi tích hợp thủ công)
+        return classBundle
+        #endif
+    }()
 }
