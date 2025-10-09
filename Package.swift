@@ -21,13 +21,7 @@ let package = Package(
             exclude: [
                 "Resources/main.js.LICENSE.txt"
             ],
-            resources: [
-                .copy("Resources/main.js"),
-                .copy("Resources/main.css"),
-                .copy("Resources/main_dark.css"),
-                .copy("Resources/index.html"),
-                .copy("Resources/index_dark.html")
-            ]
+            resources: [.process("Resources")]
         )
     ]
 )
