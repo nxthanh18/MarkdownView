@@ -15,7 +15,6 @@ open class MarkdownView: UIView {
     
     public var isDarkUIStyle = false {
         didSet {
-            // Giữ nguyên logic cũ: thay đổi theme sẽ reload CSS
             reloadMarkdownView()
         }
     }
@@ -162,7 +161,6 @@ open class MarkdownView: UIView {
 
     // MARK: - Reading contents of files
     private func readFileBy(name: String, type: String) -> String {
-        // ✅ Ưu tiên bundle tài nguyên SPM/Pods
         if let path = Bundle.markdownViewBundle.path(forResource: name, ofType: type) {
             return (try? String(contentsOfFile: path, encoding: .utf8)) ?? "Unkown Error"
         }
@@ -204,14 +202,11 @@ extension MarkdownView: WKNavigationDelegate {
     }
 }
 
-// MARK: - Bundle resolver dùng chung cho SPM + CocoaPods
 private extension Bundle {
     static var markdownViewBundle: Bundle = {
         #if SWIFT_PACKAGE
-        // SPM: resource bundle là .module
         return .module
         #else
-        // CocoaPods: cố gắng tìm "MarkdownView.bundle" bên cạnh framework/host
         let classBundle = Bundle(for: MarkdownView.self)
         let candidates: [URL?] = [
             classBundle.resourceURL,
@@ -224,7 +219,6 @@ private extension Bundle {
                 return bundle
             }
         }
-        // Fallback cuối: chính bundle của class (khi tích hợp thủ công)
         return classBundle
         #endif
     }()
