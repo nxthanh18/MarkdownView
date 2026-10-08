@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
     name: "MarkdownView",
     platforms: [
-        .iOS(.v16),
+        .iOS(.v15),
     ],
     products: [
         .library(
